@@ -18,8 +18,8 @@ esac
 
 # ---- centralized excludes ----------------------------------------------------
 # Skips: tests, node_modules, db/migration, functional tests, jenkins folders,
-# .sql, .properties, .properties.md, .feature, .md, and shell scripts
-EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test|[^/]*-jenkins)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)|(\.md$)|(\.sh$)'
+# and file types: .sql, .properties, .properties.md, .feature, .md, .sh, .ldif, .rb
+EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test|[^/]*-jenkins)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)|(\.md$)|(\.sh$)|(\.ldif$)|(\.rb$)'
 
 # ---- resolve rules file ------------------------------------------------------
 RULES_URL="${ORG_SEMGREP_RULES_URL:-}"
