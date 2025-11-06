@@ -3,7 +3,7 @@ set -euo pipefail
 DET="./tools/gradle_changed_projects.sh"
 if [ ! -x "$DET" ]; then
   mkdir -p ./tools
-  curl -fsSL "https://raw.githubusercontent.com/your-org/precommit-shared/main/hooks/gradle_changed_projects.sh" -o "$DET"
+  curl -fsSL "https://raw.githubusercontent.com/UKHomeOffice/precommit-shared/main/hooks/gradle_changed_projects.sh" -o "$DET"
   chmod +x "$DET"
 fi
 MODS="$("$DET" || true)"

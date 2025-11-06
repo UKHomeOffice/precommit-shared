@@ -1,6 +1,6 @@
 ## Pre-commit
 
-- Hooks are centrally managed at `your-org/precommit-shared` (tag `v2025.11.06`).
+- Hooks are centrally managed at `UKHomeOffice/precommit-shared` (tag `v2025.11.10`).
 - First-time setup:
   ```bash
   pip install pre-commit "detect-secrets==1.5.0"

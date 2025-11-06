@@ -7,7 +7,7 @@
 #
 # Optional env:
 #   CHECKSTYLE_VERSION (default: 12.1.1)
-#   ORG_CHECKSTYLE_BASEURL (default: https://raw.githubusercontent.com/your-org/code-standards/main/profiles)
+#   ORG_CHECKSTYLE_BASEURL (default: https://raw.githubusercontent.com/UKHomeOffice/code-standards/main/profiles)
 #   ORG_CHECKSTYLE_URL / ORG_SUPPRESSIONS_URL (explicit URLs override profile paths)
 #   PRE_COMMIT_HOME
 set -euo pipefail
@@ -34,7 +34,7 @@ JAR="${CACHE_DIR}/checkstyle-${CS_VERSION}-all.jar"
 JAR_URL="https://github.com/checkstyle/checkstyle/releases/download/checkstyle-${CS_VERSION}/checkstyle-${CS_VERSION}-all.jar"
 
 PROFILE="${PROFILE_FROM_ARG:-${ORG_CHECKSTYLE_PROFILE:-base}}"
-BASEURL_DEFAULT="https://raw.githubusercontent.com/your-org/code-standards/main/profiles"
+BASEURL_DEFAULT="https://raw.githubusercontent.com/UKHomeOffice/code-standards/main/profiles"
 BASEURL="${ORG_CHECKSTYLE_BASEURL:-$BASEURL_DEFAULT}"
 
 # If explicit URLs are provided, they win; otherwise use profile URLs.
