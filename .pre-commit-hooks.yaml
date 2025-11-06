@@ -1,0 +1,110 @@
+# precommit-shared/.pre-commit-hooks.yaml
+
+# --- Hygiene (uses PyPI inside pre-commit's venv, so no system deps) ---
+- id: org-detect-aws-credentials
+  name: detect-aws-credentials (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.detect_aws_credentials
+  pass_filenames: true
+
+- id: org-detect-private-key
+  name: detect-private-key (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.detect_private_key
+  pass_filenames: true
+
+- id: org-check-merge-conflict
+  name: check-merge-conflict (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.check_merge_conflict
+
+- id: org-end-of-file-fixer
+  name: end-of-file-fixer (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.end_of_file_fixer
+
+- id: org-trailing-whitespace
+  name: trailing-whitespace (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.trailing_whitespace_fixer
+
+- id: org-mixed-line-ending
+  name: mixed-line-ending (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.mixed_line_ending
+  args: ["--fix=lf"]
+
+- id: org-check-added-large-files
+  name: check-added-large-files (org)
+  language: python
+  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
+  entry: python -m pre_commit_hooks.check_added_large_files
+  args: ["--maxkb=1024"]
+
+# --- Secrets (no global install; pinned) ---
+- id: org-detect-secrets
+  name: detect-secrets (org)
+  language: python
+  additional_dependencies: [ "detect-secrets==1.5.0" ]
+  entry: detect-secrets-hook
+  args:
+    - --baseline
+    - .secrets.baseline
+    - --exclude-files
+    - '(^|.*/)(terraform|tools|packer|cwfa-performance-tests|cwfa-jenkins|cwfa-functional-test|cwfa-docs|cwfa-dev-env|build|dist|out|target|node_modules|vendor|generated|\.cache|test|tests|__tests__|src/test)/|(\.properties$)|(^|.*/)docker-compose.*\.ya?ml$'
+
+# --- Commit message lint (node env auto-managed by pre-commit) ---
+- id: org-commitlint
+  name: commitlint (org)
+  language: node
+  entry: commitlint
+  stages: [commit-msg]
+  additional_dependencies:
+    - "@commitlint/cli@19.5.0"
+    - "@commitlint/config-conventional@19.5.0"
+
+# --- Prettier (XML plugin) ---
+- id: org-prettier
+  name: prettier (org)
+  language: node
+  entry: prettier
+  files: '(\.json$|\.ya?ml$|\.md$|\.css$|\.html$|\.xml$)'
+  exclude: '(\.xhtml$|(^|.*/)(test|tests|__tests__|src/test)/)'
+  additional_dependencies:
+    - "prettier@3.5.3"
+    - "@prettier/plugin-xml@3.4.2"
+
+# --- Java format (self-bootstrapping JAR, no repo deps) ---
+- id: org-google-java-format
+  name: google-java-format (org)
+  language: system
+  files: \.java$
+  entry: hooks/org_google_java_format.sh
+
+# --- Checkstyle (self-bootstrapping JAR & config) ---
+- id: org-checkstyle
+  name: checkstyle (org)
+  language: system
+  files: \.java$
+  entry: hooks/org_checkstyle.sh
+
+# --- Gradle smart checks (changed projects only) ---
+- id: org-gradle-compile-changed
+  name: gradle compile (changed projects)
+  language: system
+  pass_filenames: false
+  stages: [push]
+  entry: hooks/org_gradle_compile_changed.sh
+
+- id: org-gradle-static-changed
+  name: gradle static analysis (changed projects)
+  language: system
+  pass_filenames: false
+  stages: [push]
+  entry: hooks/org_gradle_static_changed.sh
