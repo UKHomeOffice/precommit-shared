@@ -83,14 +83,14 @@
 # --- Java format (self-bootstrapping JAR, no repo deps) ---
 - id: org-google-java-format
   name: google-java-format (org)
-  language: system
+  language: script
   files: \.java$
   entry: hooks/org_google_java_format.sh
 
 # --- Checkstyle (self-bootstrapping JAR & config) ---
 - id: org-checkstyle
   name: checkstyle (org)
-  language: system
+  language: script
   files: \.java$
   entry: hooks/org_checkstyle.sh
   pass_filenames: true
@@ -98,14 +98,14 @@
 # --- Gradle smart checks (changed projects only) ---
 - id: org-gradle-compile-changed
   name: gradle compile (changed projects)
-  language: system
+  language: script
   pass_filenames: false
   stages: [push]
   entry: hooks/org_gradle_compile_changed.sh
 
 - id: org-gradle-static-changed
   name: gradle static analysis (changed projects)
-  language: system
+  language: script
   pass_filenames: false
   stages: [push]
   entry: hooks/org_gradle_static_changed.sh
