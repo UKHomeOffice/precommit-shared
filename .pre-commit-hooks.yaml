@@ -102,3 +102,11 @@
   pass_filenames: false
   stages: [push]
   entry: hooks/org_gradle_static_changed.sh
+
+- id: org-pii
+  name: semgrep (org PII)
+  language: script
+  entry: hooks/org_semgrep_pii.sh
+  pass_filenames: true
+  description: >
+    Scans staged files for PII using org-curated Semgrep rules, with centralized exclusions.
