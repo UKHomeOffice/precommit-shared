@@ -6,9 +6,9 @@ IFS=$'\n\t'
 # ---- versions / transport ----------------------------------------------------
 SG_VER="${SEMGREP_VERSION:-1.92.0}"
 TRANSPORT="${ORG_SEMGREP_TRANSPORT:-docker}"   # docker | auto | venv
-VERBOSE="${ORG_SEMGREP_VERBOSE:-}"             # set to: true/1/on to show findings
+VERBOSE="${ORG_SEMGREP_VERBOSE:-}"             # true|1|on|yes = verbose
 
-# portable lowercase conversion for macOS Bash 3.2
+# Portable lowercase conversion for macOS Bash 3.2
 lc_verbose="$(echo "$VERBOSE" | tr '[:upper:]' '[:lower:]')"
 
 QUIET_FLAG="--quiet"
@@ -17,7 +17,10 @@ case "$lc_verbose" in
 esac
 
 # ---- centralized excludes ----------------------------------------------------
-EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)'
+# Skips: test folders/files, node_modules, db/migration, functional-tests,
+# .sql, .properties, .properties.md, .feature, .md, and shell scripts
+EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)|(\.md$)|(\.sh$)'
+
 # ---- resolve rules file ------------------------------------------------------
 RULES_URL="${ORG_SEMGREP_RULES_URL:-}"
 if [ -z "$RULES_URL" ]; then
@@ -43,11 +46,11 @@ run_docker() {
   command -v docker >/dev/null 2>&1 || return 1
 
   REPO_ROOT="$(pwd)"
-  RULES_ABS="$RULES_URL"; case "$RULES_ABS" in /*) : ;; *) RULES_ABS="$REPO_ROOT/$RULES_ABS";; esac
+  RULES_ABS="$RULES_URL"
+  case "$RULES_ABS" in /*) : ;; *) RULES_ABS="$REPO_ROOT/$RULES_ABS";; esac
   RULES_DIR="$(cd "$(dirname "$RULES_ABS")" && pwd)"
   RULES_BASENAME="$(basename "$RULES_ABS")"
 
-  # NUL-delimited list (handles spaces/newlines in paths)
   TMPDIR="${TMPDIR:-/tmp}"
   LIST_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
   trap 'rm -f "$LIST_FILE"' EXIT
@@ -71,7 +74,6 @@ run_docker() {
             --config "/rules/'"$RULES_BASENAME"'" \
             --error --skip-unknown-extensions --metrics=off '"$QUIET_FLAG"' < /files.list
         else
-          # verbose: human-friendly output (no JSON)
           xargs -0 semgrep scan \
             --config "/rules/'"$RULES_BASENAME"'" \
             --error --skip-unknown-extensions --metrics=off < /files.list
@@ -91,13 +93,13 @@ run_docker() {
     '
 }
 
-# ---- venv fallback (disabled by default) -------------------------------------
+# ---- venv fallback -----------------------------------------------------------
 run_venv() {
   echo "[org-semgrep-pii] venv mode disabled; set ORG_SEMGREP_TRANSPORT=auto or venv to enable." >&2
   return 1
 }
 
-# ---- dispatch ----------------------------------------------------------------
+# ---- dispatch ---------------------------------------------------------------
 case "$TRANSPORT" in
   docker) run_docker ;;
   auto)   run_docker || run_venv ;;
