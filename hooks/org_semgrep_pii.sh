@@ -1,81 +1,23 @@
 #!/usr/bin/env bash
-# Runs Semgrep with org PII rules and centralized excludes.
-# Self-heals broken venvs and pins pip/setuptools/wheel to avoid pkg_resources issues.
+# Semgrep PII scanner (org). Prefers Docker; falls back to self-healing venv.
 set -euo pipefail
 IFS=$'\n\t'
 
-# ---- versions (adjust if you need) ------------------------------------------
-SG_VER="${SEMGREP_VERSION:-1.92.0}"       # Semgrep version you want
-PIP_VER="${PIP_VERSION:-24.2}"            # safe pip
-SETUPTOOLS_VER="${SETUPTOOLS_VERSION:-69.5.1}"  # avoid >=70 breakages
-WHEEL_VER="${WHEEL_VERSION:-0.44.0}"
+# ---- versions / config -------------------------------------------------------
+SG_VER="${SEMGREP_VERSION:-1.92.0}"             # semgrep image / pip pkg version
+TRANSPORT="${ORG_SEMGREP_TRANSPORT:-auto}"      # auto|docker|venv
 
-# ---- venv paths --------------------------------------------------------------
-CACHE_DIR="${PRE_COMMIT_HOME:-$HOME/.cache/pre-commit}/opt/semgrep-${SG_VER}"
-VENV_DIR="${CACHE_DIR}/venv"
-PY="${PYTHON_BIN:-python3}"
+# Centralized excludes: tests, node_modules, migrations, functional tests, SQL/properties/feature
+EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)'
 
-# ---- rules path --------------------------------------------------------------
+# Resolve rules file (default to shared repo's rules/pii.yml)
 RULES_URL="${ORG_SEMGREP_RULES_URL:-}"
 if [ -z "$RULES_URL" ]; then
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
   RULES_URL="${SCRIPT_DIR%/hooks}/rules/pii.yml"
 fi
 
-# ---- helpers -----------------------------------------------------------------
-nuke_broken_venv() {
-  rm -rf "$VENV_DIR"
-}
-
-ensure_venv() {
-  if [ ! -x "${VENV_DIR}/bin/python" ]; then
-    mkdir -p "$CACHE_DIR"
-    "$PY" -m venv "$VENV_DIR"
-  fi
-
-  # ensure pip
-  if ! "${VENV_DIR}/bin/python" -m pip --version >/dev/null 2>&1; then
-    "${VENV_DIR}/bin/python" -m ensurepip --upgrade >/dev/null 2>&1 || true
-  fi
-
-  # upgrade toolchain to safe versions
-  "${VENV_DIR}/bin/python" -m pip install --upgrade \
-    "pip==${PIP_VER}" \
-    "setuptools==${SETUPTOOLS_VER}" \
-    "wheel==${WHEEL_VER}"
-}
-
-install_semgrep() {
-  if ! "${VENV_DIR}/bin/python" -c "import semgrep, sys; assert semgrep.__version__=='${SG_VER}'" >/dev/null 2>&1; then
-    "${VENV_DIR}/bin/python" -m pip install "semgrep==${SG_VER}"
-  fi
-}
-
-health_check_or_rebuild() {
-  # basic import chain exercise that previously failed (pkg_resources / OTEL)
-  if ! "${VENV_DIR}/bin/python" - <<'PY'
-try:
-    import pkg_resources  # from setuptools
-    import semgrep
-except Exception as e:
-    raise SystemExit(1)
-PY
-  then
-    echo "[org-semgrep-pii] Detected broken venv; rebuilding…" >&2
-    nuke_broken_venv
-    ensure_venv
-    install_semgrep
-  fi
-}
-
-# ---- build venv --------------------------------------------------------------
-ensure_venv
-install_semgrep
-health_check_or_rebuild
-
-# ---- centralized excludes ----------------------------------------------------
-EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)'
-
+# Filter the filenames pre-commit passes
 FILES=()
 for f in "$@"; do
   [[ -e "$f" ]] || continue
@@ -83,20 +25,121 @@ for f in "$@"; do
     FILES+=("$f")
   fi
 done
-
 if [ ${#FILES[@]} -eq 0 ]; then
   echo "[org-semgrep-pii] No eligible files to scan (all excluded)." >&2
   exit 0
 fi
 
-# ---- run semgrep -------------------------------------------------------------
-# Disable telemetry to reduce deps surface during import
-export SEMGREP_SEND_METRICS=0
-export SEMGREP_ENABLE_VERSION_CHECK=0
+# ---- mode 1: Docker (preferred) ----------------------------------------------
+run_docker() {
+  command -v docker >/dev/null 2>&1 || return 1
 
-exec "${VENV_DIR}/bin/semgrep" \
-  --config "$RULES_URL" \
-  --error \
-  --skip-unknown-extensions \
-  --json \
-  "${FILES[@]}"
+  # Make absolute paths
+  REPO_ROOT="$(pwd)"
+  RULES_ABS="$RULES_URL"
+  case "$RULES_ABS" in /*) : ;; *) RULES_ABS="$REPO_ROOT/$RULES_ABS" ;; esac
+  RULES_DIR="$(dirname "$RULES_ABS")"
+  RULES_BASENAME="$(basename "$RULES_ABS")"
+
+  # Build argv file to avoid arg length issues
+  TMPDIR="${TMPDIR:-/tmp}"
+  ARGS_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
+  trap 'rm -f "$ARGS_FILE"' EXIT
+  printf '%s\n' "${FILES[@]}" > "$ARGS_FILE"
+
+  # Run semgrep in container with repo + rules mounted read-only
+  docker run --rm \
+    -e SEMGREP_SEND_METRICS=0 -e SEMGREP_ENABLE_VERSION_CHECK=0 \
+    -v "$REPO_ROOT:$REPO_ROOT:ro" \
+    -v "$RULES_DIR:$RULES_DIR:ro" \
+    -w "$REPO_ROOT" \
+    "semgrep/semgrep:${SG_VER}" \
+      --config "$RULES_ABS" \
+      --error \
+      --skip-unknown-extensions \
+      --json \
+      --include-from "$ARGS_FILE"
+}
+
+# ---- mode 2: venv (fallback) -------------------------------------------------
+run_venv() {
+  PY="${PYTHON_BIN:-python3}"
+  CACHE_DIR="${PRE_COMMIT_HOME:-$HOME/.cache/pre-commit}/opt/semgrep-${SG_VER}"
+  VENV_DIR="${CACHE_DIR}/venv"
+
+  nuke_broken() { rm -rf "$VENV_DIR"; }
+
+  ensure_env() {
+    mkdir -p "$CACHE_DIR"
+    if [ ! -x "${VENV_DIR}/bin/python" ]; then
+      "$PY" -m venv "$VENV_DIR"
+    fi
+    # Ensure pip inside the venv (some venvs start without it)
+    "${VENV_DIR}/bin/python" -m ensurepip --upgrade >/dev/null 2>&1 || true
+    # Pin safe toolchain to dodge pkg_resources/import issues
+    "${VENV_DIR}/bin/python" -m pip install -q --upgrade \
+      "pip==24.2" "setuptools==69.5.1" "wheel==0.44.0" || true
+  }
+
+  install_semgrep() {
+    if ! "${VENV_DIR}/bin/python" - <<'PY'
+try:
+  import semgrep, sys
+  assert semgrep.__version__  # just import check
+except Exception:
+  raise SystemExit(1)
+PY
+    then
+      "${VENV_DIR}/bin/python" -m pip install -q "semgrep==${SG_VER}" || return 1
+    fi
+  }
+
+  health_check() {
+    "${VENV_DIR}/bin/python" - <<'PY'
+try:
+  import pkg_resources
+  import semgrep
+except Exception:
+  raise SystemExit(1)
+PY
+  }
+
+  # build / repair
+  ensure_env || { nuke_broken; ensure_env; }
+  install_semgrep || { nuke_broken; ensure_env; install_semgrep || exit 2; }
+  health_check || { nuke_broken; ensure_env; install_semgrep || exit 3; }
+
+  export SEMGREP_SEND_METRICS=0
+  export SEMGREP_ENABLE_VERSION_CHECK=0
+
+  # feed files via argv list to avoid lengthy command lines
+  TMPDIR="${TMPDIR:-/tmp}"
+  ARGS_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
+  trap 'rm -f "$ARGS_FILE"' EXIT
+  printf '%s\n' "${FILES[@]}" > "$ARGS_FILE"
+
+  exec "${VENV_DIR}/bin/semgrep" \
+    --config "$RULES_URL" \
+    --error \
+    --skip-unknown-extensions \
+    --json \
+    --include-from "$ARGS_FILE"
+}
+
+# ---- dispatcher --------------------------------------------------------------
+case "$TRANSPORT" in
+  docker)
+    run_docker || { echo "[org-semgrep-pii] Docker requested but failed." >&2; exit 1; }
+    ;;
+  venv)
+    run_venv
+    ;;
+  auto)
+    if run_docker; then exit 0; fi
+    run_venv
+    ;;
+  *)
+    echo "[org-semgrep-pii] Unknown ORG_SEMGREP_TRANSPORT='$TRANSPORT' (use auto|docker|venv)" >&2
+    exit 2
+    ;;
+esac
