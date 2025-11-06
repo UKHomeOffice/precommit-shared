@@ -90,4 +90,4 @@ if [ -z "$SUP_PATH" ]; then
 fi
 
 # --- Run Checkstyle -----------------------------------------------------------
-exec java -jar "$JAR" -c "$CFG_PATH" -p "checkstyle.suppression.file=${SUP_PATH}" "${REMAINING_ARGS[@]}"
+exec java -Dcheckstyle.suppression.file="$SUP_PATH" -jar "$JAR" -c "$CFG_PATH" "${REMAINING_ARGS[@]}"
