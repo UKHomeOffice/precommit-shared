@@ -41,9 +41,10 @@ run_docker() {
   trap 'rm -f "$LIST_FILE"' EXIT
   printf '%s\n' "${FILES[@]}" > "$LIST_FILE"
 
+  # inside run_docker()
   docker run --rm \
     -e SEMGREP_SEND_METRICS=off \
-    -e SEMGREP_ENABLE_VERSION_CHECK=off \
+    -e SEMGREP_ENABLE_VERSION_CHECK=false \
     -v "$REPO_ROOT:/work:ro" \
     -v "$RULES_DIR:/rules:ro" \
     -v "$LIST_FILE:/files.list:ro" \
@@ -52,12 +53,10 @@ run_docker() {
     sh -c '
       set -e
       if semgrep scan --help >/dev/null 2>&1; then
-        # modern CLI (1.89+)
         xargs semgrep scan \
           --config "/rules/'"$RULES_BASENAME"'" \
           --error --skip-unknown-extensions --json < /files.list
       else
-        # legacy CLI fallback
         xargs semgrep \
           --config "/rules/'"$RULES_BASENAME"'" \
           --error --skip-unknown-extensions --json < /files.list
