@@ -15,5 +15,12 @@ if [ ! -x "${VENV_DIR}/bin/python" ]; then
   "${VENV_DIR}/bin/pip" install "detect-secrets==${DS_VERSION}"
 fi
 
-# Hand off to detect-secrets-hook with all original args
-exec "${VENV_DIR}/bin/detect-secrets-hook" "$@"
+# --- Centralized exclusion regex ---
+GLOBAL_EXCLUDE='(^|.*/)(terraform|tools|packer|cwfa-performance-tests|cwfa-jenkins|cwfa-functional-test|cwfa-docs|cwfa-dev-env|build|dist|out|target|node_modules|vendor|generated|\.cache|test|tests|__tests__|src/test)/|(\.properties$)|(^|.*/)docker-compose.*\.ya?ml$'
+
+
+# Run detect-secrets-hook with consistent baseline + exclude
+exec "${VENV_DIR}/bin/detect-secrets-hook" \
+  --baseline .secrets.baseline \
+  --exclude-files "$GLOBAL_EXCLUDE" \
+  "$@"

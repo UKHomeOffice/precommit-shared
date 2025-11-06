@@ -53,6 +53,8 @@
   language: script
   entry: hooks/org_detect_secrets.sh
   pass_filenames: true
+  description: >
+    Runs detect-secrets with org-wide exclusions (terraform, tools, build, test, etc.)
 
 # --- Commit message lint (node env auto-managed by pre-commit) ---
 - id: org-commitlint
