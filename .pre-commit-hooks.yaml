@@ -3,49 +3,48 @@
 # --- Hygiene (uses PyPI inside pre-commit's venv, so no system deps) ---
 - id: org-detect-aws-credentials
   name: detect-aws-credentials (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.detect_aws_credentials
+  language: script
+  entry: hooks/org_detect_aws_credentials.sh
   pass_filenames: true
 
 - id: org-detect-private-key
   name: detect-private-key (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.detect_private_key
+  language: script
+  entry: hooks/org_detect_private_key.sh
   pass_filenames: true
 
 - id: org-check-merge-conflict
   name: check-merge-conflict (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.check_merge_conflict
+  language: script
+  entry: hooks/org_check_merge_conflict.sh
+  pass_filenames: true
 
 - id: org-end-of-file-fixer
   name: end-of-file-fixer (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.end_of_file_fixer
+  language: script
+  entry: hooks/org_end_of_file_fixer.sh
+  pass_filenames: true
 
 - id: org-trailing-whitespace
   name: trailing-whitespace (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.trailing_whitespace_fixer
+  language: script
+  entry: hooks/org_trailing_whitespace.sh
+  pass_filenames: true
 
 - id: org-mixed-line-ending
   name: mixed-line-ending (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.mixed_line_ending
+  language: script
+  entry: hooks/org_mixed_line_ending.sh
   args: ["--fix=lf"]
+  pass_filenames: true
 
 - id: org-check-added-large-files
   name: check-added-large-files (org)
-  language: python
-  additional_dependencies: [ "pre-commit-hooks==4.6.0" ]
-  entry: python -m pre_commit_hooks.check_added_large_files
+  language: script
+  entry: hooks/org_check_added_large_files.sh
   args: ["--maxkb=1024"]
+  pass_filenames: true
+
 
 # --- Secrets (no global install; pinned) ---
 - id: org-detect-secrets
