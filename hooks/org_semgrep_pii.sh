@@ -34,31 +34,36 @@ fi
 run_docker() {
   command -v docker >/dev/null 2>&1 || return 1
 
-  # Make absolute paths
   REPO_ROOT="$(pwd)"
+
+  # Resolve rules to absolute path and split dir/name
   RULES_ABS="$RULES_URL"
   case "$RULES_ABS" in /*) : ;; *) RULES_ABS="$REPO_ROOT/$RULES_ABS" ;; esac
-  RULES_DIR="$(dirname "$RULES_ABS")"
+  RULES_DIR="$(cd "$(dirname "$RULES_ABS")" && pwd)"
   RULES_BASENAME="$(basename "$RULES_ABS")"
 
-  # Build argv file to avoid arg length issues
-  TMPDIR="${TMPDIR:-/tmp}"
-  ARGS_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
-  trap 'rm -f "$ARGS_FILE"' EXIT
-  printf '%s\n' "${FILES[@]}" > "$ARGS_FILE"
+  # Create a file list inside the repo (so we can mount it)
+  LIST_PATH="$REPO_ROOT/.git/.semgrep-files.list"
+  mkdir -p "$REPO_ROOT/.git"
+  printf '%s\n' "${FILES[@]}" > "$LIST_PATH"
 
-  # Run semgrep in container with repo + rules mounted read-only
+  # We’ll mount:
+  #  - repo at /work (ro)
+  #  - rules dir at /rules (ro)
+  #  - the list file at /work/.git/.semgrep-files.list (already under /work)
   docker run --rm \
-    -e SEMGREP_SEND_METRICS=0 -e SEMGREP_ENABLE_VERSION_CHECK=0 \
-    -v "$REPO_ROOT:$REPO_ROOT:ro" \
-    -v "$RULES_DIR:$RULES_DIR:ro" \
-    -w "$REPO_ROOT" \
+    -e SEMGREP_SEND_METRICS=0 \
+    -e SEMGREP_ENABLE_VERSION_CHECK=0 \
+    -v "$REPO_ROOT:/work:ro" \
+    -v "$RULES_DIR:/rules:ro" \
+    -w /work \
     "semgrep/semgrep:${SG_VER}" \
-      --config "$RULES_ABS" \
+    semgrep \
+      --config "/rules/${RULES_BASENAME}" \
       --error \
       --skip-unknown-extensions \
       --json \
-      --include-from "$ARGS_FILE"
+      --include-from "/work/.git/.semgrep-files.list"
 }
 
 # ---- mode 2: venv (fallback) -------------------------------------------------
