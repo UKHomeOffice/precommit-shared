@@ -7,12 +7,17 @@ IFS=$'\n\t'
 SG_VER="${SEMGREP_VERSION:-1.92.0}"
 TRANSPORT="${ORG_SEMGREP_TRANSPORT:-docker}"   # docker | auto | venv
 VERBOSE="${ORG_SEMGREP_VERBOSE:-}"             # set to: true/1/on to show findings
+
+# portable lowercase conversion for macOS Bash 3.2
+lc_verbose="$(echo "$VERBOSE" | tr '[:upper:]' '[:lower:]')"
+
 QUIET_FLAG="--quiet"
-case "${VERBOSE,,}" in true|1|on|yes) QUIET_FLAG="";; esac
+case "$lc_verbose" in
+  true|1|on|yes) QUIET_FLAG="";;
+esac
 
 # ---- centralized excludes ----------------------------------------------------
 EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)'
-
 # ---- resolve rules file ------------------------------------------------------
 RULES_URL="${ORG_SEMGREP_RULES_URL:-}"
 if [ -z "$RULES_URL" ]; then
