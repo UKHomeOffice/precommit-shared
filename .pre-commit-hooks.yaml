@@ -59,23 +59,17 @@
 # --- Commit message lint (node env auto-managed by pre-commit) ---
 - id: org-commitlint
   name: commitlint (org)
-  language: node
-  entry: commitlint
+  language: script
+  entry: hooks/org_commitlint.sh
   stages: [commit-msg]
-  additional_dependencies:
-    - "@commitlint/cli@19.5.0"
-    - "@commitlint/config-conventional@19.5.0"
 
 # --- Prettier (XML plugin) ---
 - id: org-prettier
   name: prettier (org)
-  language: node
-  entry: prettier
+  language: script
+  entry: hooks/org_prettier.sh
   files: '(\.json$|\.ya?ml$|\.md$|\.css$|\.html$|\.xml$)'
   exclude: '(\.xhtml$|(^|.*/)(test|tests|__tests__|src/test)/)'
-  additional_dependencies:
-    - "prettier@3.5.3"
-    - "@prettier/plugin-xml@3.4.2"
 
 # --- Java format (self-bootstrapping JAR, no repo deps) ---
 - id: org-google-java-format
