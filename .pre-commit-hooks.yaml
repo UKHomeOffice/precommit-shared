@@ -93,6 +93,7 @@
   language: system
   files: \.java$
   entry: hooks/org_checkstyle.sh
+  pass_filenames: true
 
 # --- Gradle smart checks (changed projects only) ---
 - id: org-gradle-compile-changed
