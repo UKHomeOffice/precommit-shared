@@ -17,9 +17,9 @@ case "$lc_verbose" in
 esac
 
 # ---- centralized excludes ----------------------------------------------------
-# Skips: test folders/files, node_modules, db/migration, functional-tests,
+# Skips: tests, node_modules, db/migration, functional tests, jenkins folders,
 # .sql, .properties, .properties.md, .feature, .md, and shell scripts
-EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)|(\.md$)|(\.sh$)'
+EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test|[^/]*-jenkins)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)|(\.md$)|(\.sh$)'
 
 # ---- resolve rules file ------------------------------------------------------
 RULES_URL="${ORG_SEMGREP_RULES_URL:-}"
