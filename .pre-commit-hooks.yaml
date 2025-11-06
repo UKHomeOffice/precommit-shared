@@ -50,14 +50,9 @@
 # --- Secrets (no global install; pinned) ---
 - id: org-detect-secrets
   name: detect-secrets (org)
-  language: python
-  additional_dependencies: [ "detect-secrets==1.5.0" ]
-  entry: detect-secrets-hook
-  args:
-    - --baseline
-    - .secrets.baseline
-    - --exclude-files
-    - '(^|.*/)(terraform|tools|packer|cwfa-performance-tests|cwfa-jenkins|cwfa-functional-test|cwfa-docs|cwfa-dev-env|build|dist|out|target|node_modules|vendor|generated|\.cache|test|tests|__tests__|src/test)/|(\.properties$)|(^|.*/)docker-compose.*\.ya?ml$'
+  language: script
+  entry: hooks/org_detect_secrets.sh
+  pass_filenames: true
 
 # --- Commit message lint (node env auto-managed by pre-commit) ---
 - id: org-commitlint
