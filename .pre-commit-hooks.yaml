@@ -6,6 +6,9 @@
   language: script
   entry: hooks/org_detect_aws_credentials.sh
   pass_filenames: true
+  description: >
+    Detects accidentally committed AWS credentials, excluding .feature files and test folders.
+
 
 - id: org-detect-private-key
   name: detect-private-key (org)
