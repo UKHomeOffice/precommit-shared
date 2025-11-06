@@ -1,32 +1,39 @@
 #!/usr/bin/env bash
-# Semgrep PII scanner (org). Prefer Docker; venv fallback optional.
+# Semgrep PII scanner (org). Docker-first; clean pass/fail output by default.
 set -euo pipefail
 IFS=$'\n\t'
 
+# ---- versions / transport ----------------------------------------------------
 SG_VER="${SEMGREP_VERSION:-1.92.0}"
-TRANSPORT="${ORG_SEMGREP_TRANSPORT:-docker}"   # force docker by default
+TRANSPORT="${ORG_SEMGREP_TRANSPORT:-docker}"   # docker | auto | venv
+VERBOSE="${ORG_SEMGREP_VERBOSE:-}"             # set to: true/1/on to show findings
+QUIET_FLAG="--quiet"
+case "${VERBOSE,,}" in true|1|on|yes) QUIET_FLAG="";; esac
 
-# Centralized excludes (keep in sync with org policy)
+# ---- centralized excludes ----------------------------------------------------
 EXCLUDE_RE='(^|.*/)(test|tests|__tests__|src/test|node_modules|db/migration|cwfa-functional-test)/|(\.sql$)|(\.properties$)|(\.properties\.md$)|(\.feature$)'
 
-# Resolve rules file (org-curated)
+# ---- resolve rules file ------------------------------------------------------
 RULES_URL="${ORG_SEMGREP_RULES_URL:-}"
 if [ -z "$RULES_URL" ]; then
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
   RULES_URL="${SCRIPT_DIR%/hooks}/rules/pii.yml"
 fi
 
-# Filter filenames passed by pre-commit
+# ---- filter incoming filenames (only regular files; honor excludes) ----------
 FILES=()
 for f in "$@"; do
-  [[ -f "$f" ]] || continue            # skip non-regular or deleted paths
+  [[ -f "$f" ]] || continue
   if [[ ! "$f" =~ $EXCLUDE_RE ]]; then
     FILES+=("$f")
   fi
 done
-[[ ${#FILES[@]} -gt 0 ]] || { echo "[org-semgrep-pii] No eligible files."; exit 0; }
+if [ ${#FILES[@]} -eq 0 ]; then
+  echo "[org-semgrep-pii] No eligible files to scan (all excluded)." >&2
+  exit 0
+fi
 
-
+# ---- docker runner -----------------------------------------------------------
 run_docker() {
   command -v docker >/dev/null 2>&1 || return 1
 
@@ -35,10 +42,10 @@ run_docker() {
   RULES_DIR="$(cd "$(dirname "$RULES_ABS")" && pwd)"
   RULES_BASENAME="$(basename "$RULES_ABS")"
 
+  # NUL-delimited list (handles spaces/newlines in paths)
   TMPDIR="${TMPDIR:-/tmp}"
   LIST_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
   trap 'rm -f "$LIST_FILE"' EXIT
-  # Write NUL-delimited list
   : > "$LIST_FILE"
   for f in "${FILES[@]}"; do printf '%s\0' "$f" >> "$LIST_FILE"; done
 
@@ -53,26 +60,42 @@ run_docker() {
     sh -c '
       set -e
       if semgrep scan --help >/dev/null 2>&1; then
-        xargs -0 semgrep scan \
-          --config "/rules/'"$RULES_BASENAME"'" \
-          --error --skip-unknown-extensions --metrics=off --json < /files.list
+        # modern CLI
+        if [ -n "'"$QUIET_FLAG"'" ]; then
+          xargs -0 semgrep scan \
+            --config "/rules/'"$RULES_BASENAME"'" \
+            --error --skip-unknown-extensions --metrics=off '"$QUIET_FLAG"' < /files.list
+        else
+          # verbose: human-friendly output (no JSON)
+          xargs -0 semgrep scan \
+            --config "/rules/'"$RULES_BASENAME"'" \
+            --error --skip-unknown-extensions --metrics=off < /files.list
+        fi
       else
-        xargs -0 semgrep \
-          --config "/rules/'"$RULES_BASENAME"'" \
-          --error --skip-unknown-extensions --json < /files.list
+        # legacy CLI fallback
+        if [ -n "'"$QUIET_FLAG"'" ]; then
+          xargs -0 semgrep \
+            --config "/rules/'"$RULES_BASENAME"'" \
+            --error --skip-unknown-extensions '"$QUIET_FLAG"' < /files.list
+        else
+          xargs -0 semgrep \
+            --config "/rules/'"$RULES_BASENAME"'" \
+            --error --skip-unknown-extensions < /files.list
+        fi
       fi
     '
 }
 
+# ---- venv fallback (disabled by default) -------------------------------------
 run_venv() {
-  echo "[org-semgrep-pii] venv mode disabled to avoid host packaging issues." >&2
-  echo "Set ORG_SEMGREP_TRANSPORT=venv if you really need it." >&2
+  echo "[org-semgrep-pii] venv mode disabled; set ORG_SEMGREP_TRANSPORT=auto or venv to enable." >&2
   return 1
 }
 
+# ---- dispatch ----------------------------------------------------------------
 case "$TRANSPORT" in
   docker) run_docker ;;
   auto)   run_docker || run_venv ;;
   venv)   run_venv ;;
-  *) echo "[org-semgrep-pii] unknown ORG_SEMGREP_TRANSPORT=$TRANSPORT" >&2; exit 2 ;;
+  *) echo "[org-semgrep-pii] Unknown ORG_SEMGREP_TRANSPORT=$TRANSPORT (use docker|auto|venv)" >&2; exit 2 ;;
 esac
