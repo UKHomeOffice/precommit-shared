@@ -1,9 +1,14 @@
 rules:
   - id: pii.email
-    message: "Possible email address"
+    message: "Possible email address detected."
     severity: WARNING
-    languages: [generic]
-    pattern-regex: (?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b
+    languages: [ generic ]
+    pattern-regex: (?i)\b[A-Z0-9._%+-]+@(?:[A-Z0-9-]+\.)+[A-Z]{2,}\b
+    pattern-not-regex: |
+      (?i)(
+        \bgit@[A-Z0-9.-]+\.[A-Z]{2,}\b[:/]\S+     # Git URLs: git@github.com:repo
+        |noreply@[A-Z0-9.-]+\.[A-Z]{2,}\b        # noreply addresses
+      )
 
   - id: pii.uk_phone
     message: "Possible UK phone number"
