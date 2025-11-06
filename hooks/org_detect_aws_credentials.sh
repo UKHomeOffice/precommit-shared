@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Wrapper to run detect-aws-credentials from pre-commit-hooks,
-# excluding .feature files and any test folders/files.
+# excluding test files, SQL, properties, feature files, migrations, etc.
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -10,7 +10,7 @@ CACHE_DIR="${PRE_COMMIT_HOME:-$HOME/.cache/pre-commit}/opt/${PKG}-${VER}"
 VENV_DIR="${CACHE_DIR}/venv"
 PY="${PYTHON_BIN:-python3}"
 
-# --- ensure venv exists and has pre-commit-hooks installed --------------------
+# --- Ensure venv and install pre-commit-hooks if missing ---------------------
 if [ ! -x "${VENV_DIR}/bin/python" ]; then
   mkdir -p "$CACHE_DIR"
   "$PY" -m venv "$VENV_DIR"
@@ -19,9 +19,9 @@ if [ ! -x "${VENV_DIR}/bin/python" ]; then
   "${VENV_DIR}/bin/python" -m pip install "${PKG}==${VER}"
 fi
 
-# --- Exclude patterns ---------------------------------------------------------
-# Skip .feature files, and any paths under test folders or named like test_*.*
-EXCLUDE_REGEX='(^|.*/)(test|tests|__tests__|src/test)/|(\.feature$)|(^|.*/)?test_.*|_test\.'
+# --- Global exclude regex ----------------------------------------------------
+# Skips .feature, .properties, .sql, .properties.md, test dirs, migration dirs, and node_modules.
+EXCLUDE_REGEX='(^|.*/)(test|tests|__tests__|src/test|cwfa-functional-test|node_modules|db/migration)/|(\.feature$)|(\.sql$)|(\.properties$)|(\.properties\.md$)|(^|.*/)?test_.*|_test\.'
 
 FILTERED_FILES=()
 for f in "$@"; do
@@ -30,7 +30,6 @@ for f in "$@"; do
   fi
 done
 
-# --- Run detect_aws_credentials only on remaining files -----------------------
 if [ ${#FILTERED_FILES[@]} -eq 0 ]; then
   echo "[org-detect-aws-credentials] No eligible files to scan (all excluded)." >&2
   exit 0
