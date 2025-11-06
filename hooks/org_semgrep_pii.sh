@@ -42,29 +42,38 @@ run_docker() {
   RULES_DIR="$(cd "$(dirname "$RULES_ABS")" && pwd)"
   RULES_BASENAME="$(basename "$RULES_ABS")"
 
-  # Create a file list inside the repo (so we can mount it)
-  LIST_PATH="$REPO_ROOT/.git/.semgrep-files.list"
-  mkdir -p "$REPO_ROOT/.git"
-  printf '%s\n' "${FILES[@]}" > "$LIST_PATH"
+  # Generate relative file list for clarity
+  TMPDIR="${TMPDIR:-/tmp}"
+  ARGS_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
+  trap 'rm -f "$ARGS_FILE"' EXIT
+  printf '%s\n' "${FILES[@]}" > "$ARGS_FILE"
 
-  # We’ll mount:
-  #  - repo at /work (ro)
-  #  - rules dir at /rules (ro)
-  #  - the list file at /work/.git/.semgrep-files.list (already under /work)
+  # Run semgrep (v1.89+ syntax) explicitly with `semgrep scan`
   docker run --rm \
     -e SEMGREP_SEND_METRICS=0 \
     -e SEMGREP_ENABLE_VERSION_CHECK=0 \
     -v "$REPO_ROOT:/work:ro" \
     -v "$RULES_DIR:/rules:ro" \
+    -v "$ARGS_FILE:/files.list:ro" \
     -w /work \
     "semgrep/semgrep:${SG_VER}" \
-    semgrep \
-      --config "/rules/${RULES_BASENAME}" \
-      --error \
-      --skip-unknown-extensions \
-      --json \
-      --include-from "/work/.git/.semgrep-files.list"
+    sh -c '
+      # shell inside container
+      set -e
+      if semgrep scan --help | grep -q -- "--include"; then
+        # modern CLI
+        xargs semgrep scan \
+          --config "/rules/'"${RULES_BASENAME}"'" \
+          --error --skip-unknown-extensions --json < /files.list
+      else
+        # older CLI fallback
+        xargs semgrep \
+          --config "/rules/'"${RULES_BASENAME}"'" \
+          --error --skip-unknown-extensions --json < /files.list
+      fi
+    '
 }
+
 
 # ---- mode 2: venv (fallback) -------------------------------------------------
 run_venv() {
