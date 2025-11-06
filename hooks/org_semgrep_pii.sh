@@ -19,13 +19,13 @@ fi
 # Filter filenames passed by pre-commit
 FILES=()
 for f in "$@"; do
-  [[ -e "$f" ]] || continue
-  if [[ ! "$f" =~ $EXCLUDE_RE ]]; then FILES+=("$f"); fi
+  [[ -f "$f" ]] || continue            # skip non-regular or deleted paths
+  if [[ ! "$f" =~ $EXCLUDE_RE ]]; then
+    FILES+=("$f")
+  fi
 done
-if [ ${#FILES[@]} -eq 0 ]; then
-  echo "[org-semgrep-pii] No eligible files to scan (all excluded)." >&2
-  exit 0
-fi
+[[ ${#FILES[@]} -gt 0 ]] || { echo "[org-semgrep-pii] No eligible files."; exit 0; }
+
 
 run_docker() {
   command -v docker >/dev/null 2>&1 || return 1
@@ -35,13 +35,13 @@ run_docker() {
   RULES_DIR="$(cd "$(dirname "$RULES_ABS")" && pwd)"
   RULES_BASENAME="$(basename "$RULES_ABS")"
 
-  # create a temp list of files (mounted into container)
   TMPDIR="${TMPDIR:-/tmp}"
   LIST_FILE="$(mktemp "${TMPDIR%/}/semgrep-files.XXXXXX")"
   trap 'rm -f "$LIST_FILE"' EXIT
-  printf '%s\n' "${FILES[@]}" > "$LIST_FILE"
+  # Write NUL-delimited list
+  : > "$LIST_FILE"
+  for f in "${FILES[@]}"; do printf '%s\0' "$f" >> "$LIST_FILE"; done
 
-  # inside run_docker()
   docker run --rm \
     -e SEMGREP_SEND_METRICS=off \
     -e SEMGREP_ENABLE_VERSION_CHECK=false \
@@ -53,11 +53,11 @@ run_docker() {
     sh -c '
       set -e
       if semgrep scan --help >/dev/null 2>&1; then
-        xargs semgrep scan \
+        xargs -0 semgrep scan \
           --config "/rules/'"$RULES_BASENAME"'" \
-          --error --skip-unknown-extensions --json < /files.list
+          --error --skip-unknown-extensions --metrics=off --json < /files.list
       else
-        xargs semgrep \
+        xargs -0 semgrep \
           --config "/rules/'"$RULES_BASENAME"'" \
           --error --skip-unknown-extensions --json < /files.list
       fi
