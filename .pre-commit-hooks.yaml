@@ -1,6 +1,3 @@
-# precommit-shared/.pre-commit-hooks.yaml
-
-# --- Hygiene (uses PyPI inside pre-commit's venv, so no system deps) ---
 - id: org-detect-aws-credentials
   name: detect-aws-credentials (org)
   language: script
@@ -48,8 +45,6 @@
   args: ["--maxkb=1024"]
   pass_filenames: true
 
-
-# --- Secrets (no global install; pinned) ---
 - id: org-detect-secrets
   name: detect-secrets (org)
   language: script
@@ -57,15 +52,11 @@
   pass_filenames: true
   description: >
     Runs detect-secrets with org-wide exclusions (terraform, tools, build, test, etc.)
-
-# --- Commit message lint (node env auto-managed by pre-commit) ---
 - id: org-commitlint
   name: commitlint (org)
   language: script
   entry: hooks/org_commitlint.sh
   stages: [commit-msg]
-
-# --- Prettier (XML plugin) ---
 - id: org-prettier
   name: prettier (org)
   language: script
@@ -110,3 +101,8 @@
   pass_filenames: true
   description: >
     Scans staged files for PII using org-curated Semgrep rules, with centralized exclusions.
+
+- id: enforce-commit-template
+  name: Enforce commit template
+  language: script
+  entry: hooks/prepare_commit_msg.sh

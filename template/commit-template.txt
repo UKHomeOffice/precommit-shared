@@ -1,0 +1,24 @@
+# Commit Template (NCDS Live Services)
+
+## Why
+Fast, consistent commit messages that capture: Jira, summary, impact, risk, and testing.
+This helps reviewers, SREs, incident responders, and release notes—without duplicating Confluence.
+
+## Template
+Jira: <ABC-123>
+Summary: <1-line purpose>
+Impact: <user/service impact in a short phrase>
+Risk: Low | Medium | High
+Testing: <unit | integration | manual on <env>>
+Notes: <optional>
+
+## Workflow
+1) Stage your changes: `git add -p`
+2) `git commit` → the template is auto-inserted
+3) Fill the fields; commitlint will error if Jira/Summary are missing
+4) Push as normal
+
+## Tips
+- Keep Summary to one line.
+- If Risk is High, add a short rollback note in Notes.
+- For multi-commit work, keep each commit minimal, the PR body and Confluence release notes explain the bigger story.
