@@ -3,7 +3,7 @@ set -euo pipefail
 
 MSG_FILE="$1"
 KIND="${2:-}"         # "merge" | "squash" | "" (normal)
-TEMPLATE=".git/commit-template.txt"
+TEMPLATE="template/commit-template.txt"
 
 # Skip merge/squash messages
 if [[ "$KIND" == "merge" || "$KIND" == "squash" ]]; then
