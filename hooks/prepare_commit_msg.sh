@@ -1,45 +1,46 @@
 #!/usr/bin/env bash
-# prepare_commit_msg.sh — injects a commit template only when Git's commit.template isn't set.
-# Compatible with macOS bash 3.2+.
+# Injects the org commit template from the SHARED HOOK REPO.
+# Does NOT use git's commit.template and does NOT require a template in consumer repos.
+# macOS-safe (no readlink -f), bash 3.2+ compatible.
 set -euo pipefail
 
 MSG_FILE="$1"
-KIND="${2:-}"          # "merge" | "squash" | "" (normal)
+KIND="${2:-}"    # "merge" | "squash" | "" (normal)
 
-# 1) Skip merge/squash (git provides its own message)
+# 1) Skip merge/squash (git writes its own message)
 if [[ "$KIND" == "merge" || "$KIND" == "squash" ]]; then
   exit 0
 fi
 
-# 2) If git commit.template is configured, let Git/IDE handle it (works in IntelliJ)
-if git config --get commit.template >/dev/null 2>&1; then
-  exit 0
-fi
-
-# 3) Only act if the message is empty/whitespace
+# 2) Only inject if message is empty/whitespace
 if [[ -s "$MSG_FILE" && -n "$(tr -d ' \t\r\n' < "$MSG_FILE")" ]]; then
   exit 0
 fi
 
-# 4) Resolve repo root and candidate template locations
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-CANDIDATES=(
-  "$ROOT/templates/commit-template.txt"  # tracked (recommended)
-  "$ROOT/template/commit-template.txt"   # your current path, kept as fallback
-  "$ROOT/.git/commit-template.txt"       # legacy fallback
-)
-
-# 5) Insert the first existing template, if any
-for TPL in "${CANDIDATES[@]}"; do
-  if [[ -f "$TPL" ]]; then
-    {
-      cat "$TPL"
-      echo
-      echo "# Fill fields; lines starting with # are ignored."
-    } > "$MSG_FILE"
-    exit 0
-  fi
+# 3) Resolve the real path of THIS script (follow symlinks in pre-commit cache)
+SCRIPT="$0"
+while [ -L "$SCRIPT" ]; do
+  LINK="$(readlink "$SCRIPT")"
+  case "$LINK" in
+    /*) SCRIPT="$LINK" ;;
+    *)  SCRIPT="$(cd "$(dirname "$SCRIPT")" && pwd)/$LINK" ;;
+  esac
 done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT")" && pwd)"
 
-# No template found → do nothing (don’t block commit)
+# 4) Template is shipped with the shared repo (relative to this script)
+# Repo layout (shared):
+#   templates/commit-template.txt
+#   hooks/prepare_commit_msg.sh   <-- this file
+TPL="${SCRIPT_DIR%/hooks}/templates/commit-template.txt"
+
+# 5) Inject if template exists; otherwise do nothing (never block commits)
+if [[ -f "$TPL" ]]; then
+  {
+    cat "$TPL"
+    echo
+    echo "# Fill fields; lines starting with # are ignored."
+  } > "$MSG_FILE"
+fi
+
 exit 0
