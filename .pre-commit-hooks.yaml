@@ -60,7 +60,6 @@
   name: commitlint (org)
   language: script
   entry: hooks/org_commitlint.sh
-  stages: [commit-msg]
   description: Validates commit messages (Jira + minimal live-service template).
 
 - id: org-prettier
@@ -93,7 +92,6 @@
   name: gradle compile (changed projects)
   language: script
   pass_filenames: false
-  stages: [pre-push]
   entry: hooks/org_gradle_compile_changed.sh
   description: Compiles only changed Gradle subprojects before push.
 
@@ -101,7 +99,6 @@
   name: gradle static analysis (changed projects)
   language: script
   pass_filenames: false
-  stages: [pre-push]
   entry: hooks/org_gradle_static_changed.sh
   description: Runs checkstyle/spotbugs/pmd on changed subprojects only.
 
@@ -116,5 +113,4 @@
   name: Enforce commit template
   language: script
   entry: hooks/prepare_commit_msg.sh
-  stages: [prepare-commit-msg]
   description: Auto-injects minimal live-service commit template.
