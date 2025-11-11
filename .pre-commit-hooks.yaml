@@ -152,3 +152,11 @@
   pass_filenames: true
   files: '\.(xml|xhtml)$'
   description: Ensures XML/XHTML is well-formed (uses xmllint if available).
+
+- id: org-gradle-wrapper-sanity
+  name: gradle wrapper sanity (org)
+  language: script
+  entry: hooks/org_gradle_wrapper_sanity.sh
+  pass_filenames: false
+  stages: [pre-commit, pre-push]
+  description: Blocks jar-only wrapper changes; requires properties change alongside.
