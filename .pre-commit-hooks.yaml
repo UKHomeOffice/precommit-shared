@@ -114,3 +114,11 @@
   language: script
   entry: hooks/prepare_commit_msg.sh
   description: Auto-injects minimal live-service commit template.
+
+- id: org-test-coverage
+  name: test coverage threshold (org)
+  language: script
+  entry: hooks/org_test_coverage.sh
+  pass_filenames: false
+  args: ["--min=80", "--engine=auto", "--allow-missing"]
+  description: Runs unit tests and enforces minimum coverage (Gradle/Maven/Jest).
