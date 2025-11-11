@@ -122,3 +122,33 @@
   pass_filenames: false
   args: ["--min=80", "--engine=auto", "--allow-missing"]
   description: Runs unit tests and enforces minimum coverage (Gradle/Maven/Jest).
+
+- id: org-permissions-policy
+  name: file permissions policy (org)
+  language: script
+  entry: hooks/org_permissions_policy.sh
+  pass_filenames: true
+  description: Forbids exec bit on source files; enforces exec bit on scripts.
+
+- id: org-no-binaries
+  name: forbid binary files (org)
+  language: script
+  entry: hooks/org_no_binaries.sh
+  pass_filenames: true
+  description: Blocks binary files by content (NUL bytes), not just size.
+
+- id: org-validate-json-yaml
+  name: validate json/yaml (org)
+  language: script
+  entry: hooks/org_validate_json_yaml.sh
+  pass_filenames: true
+  files: '\.(json|ya?ml)$'
+  description: Validates JSON/YAML syntax without reformatting.
+
+- id: org-xml-xhtml-validate
+  name: validate xml/xhtml (org)
+  language: script
+  entry: hooks/org_xml_xhtml_validate.sh
+  pass_filenames: true
+  files: '\.(xml|xhtml)$'
+  description: Ensures XML/XHTML is well-formed (uses xmllint if available).
